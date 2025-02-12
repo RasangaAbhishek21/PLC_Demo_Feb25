@@ -55,6 +55,12 @@ if "messages" not in st.session_state:
 st.set_page_config(page_title="PLC Chatbot", page_icon="🤖")
 st.title("PLC Chatbot")
 
+# Add a debug expander
+with st.expander("Debug Information"):
+    st.write("This section shows raw API responses for debugging")
+    if "last_response" in st.session_state:
+        st.json(st.session_state.last_response)
+
 # Chat interface
 for message in st.session_state.messages:
     role = "assistant" if message["role"] == "assistant" else "user"
@@ -80,12 +86,21 @@ if prompt := st.chat_input("Ask something about PLCs..."):
                 application_token=st.secrets["APPLICATION_TOKEN"]
             )
             
+            # Store raw response for debugging
+            st.session_state.last_response = response
+            
             # Extract the actual response text from the Langflow response
             if "error" in response:
                 response_text = f"Error: {response['error']}"
             else:
-                # Adjust this based on your actual response structure
-                response_text = response.get("output", "Sorry, I couldn't process your request.")
+                # Try different possible response structures
+                response_text = (
+                    response.get("response") or  # Try direct response
+                    response.get("output") or    # Try output field
+                    response.get("result") or    # Try result field
+                    (response.get("data", {}).get("result") if isinstance(response.get("data"), dict) else None) or  # Try nested data.result
+                    str(response)  # Fallback to string representation
+                )
             
             st.markdown(response_text)
     
